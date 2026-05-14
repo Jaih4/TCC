@@ -1,0 +1,17 @@
+# Ignore local Python environment
+.venv/
+venv/
+
+# Ignore local database
+db.sqlite3
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ignore model checkpoints and training outputs not needed in Git
+bert_sota_toxicidade/
+meu_bert_toxico/
+resultados_mega_modelo/
+resultados_treinamento/

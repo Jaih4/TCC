@@ -1,0 +1,6 @@
+<h1>Dashboard de Análise de Comentários</h1>
+<ul>
+{% for comment in comments %}
+<li>{{ comment.text }} - Pontuação: {{ comment.score }}</li>
+{% endfor %}
+</ul>
