@@ -3,6 +3,9 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+APIFY_TOKEN = os.environ.get('APIFY_TOKEN')
+
 SECRET_KEY = 'your-secret-key-change-this'
 
 DEBUG = True

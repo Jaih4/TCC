@@ -11,3 +11,5 @@ numpy<2
 datasets
 evaluate
 scikit-learn
+pandas
+apify-client

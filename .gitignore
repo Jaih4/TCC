@@ -1,6 +1,7 @@
 # Ignore local Python environment
 .venv/
 venv/
+.env/
 
 # Ignore local database
 db.sqlite3
@@ -15,4 +16,6 @@ bert_sota_toxicidade/
 meu_bert_toxico/
 resultados_mega_modelo/
 resultados_treinamento/
-bert_sobert_sota_toxicidade_v2/
+bert_sota_toxicidade_v2/
+resultados_sentimento/
+meu_bert_sentimento/
