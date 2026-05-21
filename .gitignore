@@ -1,7 +1,7 @@
 # Ignore local Python environment
 .venv/
 venv/
-.env/
+.env
 
 # Ignore local database
 db.sqlite3
