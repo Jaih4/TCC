@@ -6,17 +6,18 @@ from analise_nlp.rules.middle import check_middle
 from analise_nlp.rules.nice import check_nice
 from analise_nlp.rules.solida import check_solida
 from analise_nlp.rules.caps import check_caps
+from analise_nlp.rules.spam import check_spam
 
 def ensemble_score(text: str, all_texts_in_scrape: list, bert_scores: list) -> float:
     # --- PREPARAÇÃO DAS REGRAS ---
     rules = {
         'hate_list': check_hate(text),
         'bad_list': check_bad(text),
-        'nice_list': check_nice(text),   # Suas funções nice/solida
+        'nice_list': check_nice(text), 
         'solida_list': check_solida(text),
         'caps_lock': check_caps(text),
         'middlelist': check_middle(text),
-        'spam': all_texts_in_scrape.count(text) > 3, # Exemplo simples de detecção de spam (mesmo texto repetido)
+        'spam': check_spam(text),
     }
 
     # --- INÍCIO DO FLUXOGRAMA ---

@@ -1,10 +1,10 @@
 from pathlib import Path
 import os
-
+from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-APIFY_TOKEN = os.environ.get('APIFY_TOKEN')
+load_dotenv()
+APIFY_TOKEN = os.environ.get('APIFY')
 
 SECRET_KEY = 'your-secret-key-change-this'
 

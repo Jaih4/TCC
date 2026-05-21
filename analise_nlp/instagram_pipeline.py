@@ -462,41 +462,88 @@ def processar_comentarios(comentarios: List[Dict[str, Any]]) -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
-
 def salvar_resultados_no_banco(df: pd.DataFrame, profile_handle: str = '') -> str:
     """Salva o DataFrame de resultados na tabela `api.Comment`.
 
     Retorna o nome da tabela usada.
     """
     if df is None or df.empty:
+        print("[BANCO DE DADOS] Nenhum dado para salvar (DataFrame vazio).")
         return 'api_comment'
 
     try:
-        from django.db import transaction
         from api.models import Comment
-    except Exception:
-        # Ambiente não configurado com Django ORM — retornamos sem salvar
+    except Exception as exc:
+        print(f"[ERRO DE IMPORTAÇÃO] Não foi possível carregar o model Comment: {exc}")
         return 'api_comment'
 
-    with transaction.atomic():
-        for _, row in df.iterrows():
-            texto = row.get('texto') or ''
-            score = row.get('score_p')
-            try:
-                score_val = float(score) if score is not None else 0.0
-            except Exception:
-                score_val = 0.0
-            Comment.objects.create(text=texto, score=score_val, account_name=profile_handle)
+    sucesso = 0
+    erro = 0
+    print(f"\n[BANCO DE DADOS] Iniciando salvamento de {len(df)} comentários da conta @{profile_handle}...")
+
+    for _, row in df.iterrows():
+        # 1. Tratamento do texto
+        texto = row.get('texto') or ''
+        
+        # 2. Tratamento do Score
+        score = row.get('score_p')
+        try:
+            # pd.notna verifica se não é nulo/NaN
+            score_val = float(score) if pd.notna(score) else 0.0
+        except Exception:
+            score_val = 0.0
+            
+        # 3. Tratamento da Data (Evitando erro de NaT do Pandas)
+        data_raw = row.get('published_at')
+        data_val = None if pd.isna(data_raw) else data_raw
+        
+        # 4. Tratamento dos Booleanos
+        hate_val = bool(row.get('is_hate', False))
+        bad_val = bool(row.get('is_bad', False))
+        nice_val = bool(row.get('is_nice', False))
+        solida_val = bool(row.get('is_solida', False))
+        caixa_alta_val = bool(row.get('is_caixa_alta', False))
+        spam_val = bool(row.get('is_spam', False))
+        middlelist_val = bool(row.get('is_middlelist', False))
+        
+        # 5. Tratamento de Modelo (IA)
+        modelo_raw = row.get('modelo_sentimento')
+        modelo_val = '' if pd.isna(modelo_raw) else str(modelo_raw)
+            
+        confianca_raw = row.get('modelo_confianca')
+        confianca_val = float(confianca_raw) if pd.notna(confianca_raw) else 0.0
+
+        try:
+            # 6. Salvando tudo no banco
+            Comment.objects.create(
+                account_name=str(profile_handle),
+                texto=str(texto),
+                data=data_val,
+                hate=hate_val,
+                bad=bad_val,
+                nice=nice_val,
+                solida=solida_val,
+                caixa_alta=caixa_alta_val,
+                spam=spam_val,
+                middlelist=middlelist_val,
+                modelo=modelo_val,
+                confianca=confianca_val,
+                score_p=score_val
+            )
+            sucesso += 1
+        except Exception as e:
+            print(f"[ERRO AO SALVAR LINHA] {e} | Texto: {str(texto)[:30]}...")
+            erro += 1
+            
 
     return 'api_comment'
-
 
 def run_instagram_sentiment_pipeline(
     profile_handle: str,
     apify_token: str,
     data_referencia: datetime,
     max_posts: int = 20,
-    max_comments_per_post: int = 200,
+    max_comments_per_post: int = 50,
 ) -> pd.DataFrame:
     """Executa todo o pipeline Apify + Scorer Híbrido e retorna um DataFrame."""
     scraper = ApifyInstagramScraper(

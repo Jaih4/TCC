@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard NLP de Comentários</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- WordCloud -->
+    <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
+
+    <style>
+        body{
+            background:#f4f6f9;
+        }
+
+        .card{
+            border:none;
+            border-radius:16px;
+            box-shadow:0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .metric-card{
+            padding:20px;
+            color:white;
+            border-radius:14px;
+        }
+
+        .metric-title{
+            font-size:14px;
+            opacity:0.8;
+        }
+
+        .metric-value{
+            font-size:28px;
+            font-weight:bold;
+        }
+
+        #wordCloud{
+            width:100%;
+            height:450px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid py-4">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Dashboard de Análise NLP</h2>
+            <small class="text-muted">
+                Evolução temporal, sentimentos e nuvem de palavras
+            </small>
+        </div>
+
+        <a href="" class="btn btn-outline-dark">
+            Voltar
+        </a>
+    </div>
+
+    <!-- FILTRO -->
+    <div class="card mb-4">
+        <div class="card-body">
+
+            <form method="GET" class="row g-3 align-items-center">
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                        Conta
+                    </label>
+
+                    <select name="account"
+                            class="form-select"
+                            onchange="this.form.submit()">
+
+                        <option value="">
+                            Todas as contas
+                        </option>
+
+                        {% for acc in accounts %}
+                        <option value="{{ acc }}"
+                            {% if acc == selected_account %}selected{% endif %}>
+                            @{{ acc }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- KPIS -->
+    <div class="row g-4 mb-4">
+
+        <div class="col-md-3">
+            <div class="metric-card bg-primary">
+                <div class="metric-title">
+                    Total Comentários
+                </div>
+
+                <div class="metric-value">
+                    {{ total_comments }}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="metric-card bg-success">
+                <div class="metric-title">
+                    Apoio
+                </div>
+
+                <div class="metric-value">
+                    {{ apoio_pct }}%
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="metric-card bg-danger">
+                <div class="metric-title">
+                    Rejeição
+                </div>
+
+                <div class="metric-value">
+                    {{ rejeicao_pct }}%
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="metric-card bg-dark">
+                <div class="metric-title">
+                    Score Médio
+                </div>
+
+                <div class="metric-value">
+                    {{ media_score }}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LINHA 1 -->
+    <div class="row g-4 mb-4">
+
+        <!-- GRAFICO TEMPORAL -->
+        <div class="col-lg-8">
+            <div class="card h-100">
+
+                <div class="card-body">
+
+                    <h5 class="fw-bold mb-4">
+                        Evolução das Categorias no Tempo
+                    </h5>
+
+                    <canvas id="timelineChart"></canvas>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- DISTRIBUIÇÃO -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+
+                <div class="card-body">
+
+                    <h5 class="fw-bold mb-4">
+                        Distribuição Geral
+                    </h5>
+
+                    <canvas id="pieChart"></canvas>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LINHA 2 -->
+    <div class="row g-4 mb-4">
+
+        <!-- NUVEM -->
+        <div class="col-lg-8">
+
+            <div class="card">
+
+                <div class="card-body">
+
+                    <h5 class="fw-bold mb-4">
+                        Nuvem de Palavras
+                    </h5>
+
+                    <canvas id="wordCloud"></canvas>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- APOIO X REJEIÇÃO -->
+        <div class="col-lg-4">
+
+            <div class="card h-100">
+
+                <div class="card-body">
+
+                    <h5 class="fw-bold mb-4">
+                        Apoio vs Rejeição
+                    </h5>
+
+                    <canvas id="supportChart"></canvas>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- TABELA -->
+    <div class="card">
+
+        <div class="card-body">
+
+            <h5 class="fw-bold mb-4">
+                Estatísticas das Categorias
+            </h5>
+
+            <div class="table-responsive">
+
+                <table class="table align-middle table-hover">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Categoria</th>
+                            <th>Quantidade</th>
+                            <th>Porcentagem</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for label, count in stats.items %}
+                        <tr>
+
+                            <td class="fw-semibold">
+                                {{ label }}
+                            </td>
+
+                            <td>
+                                {{ count }}
+                            </td>
+
+                            <td>
+                                {% for k, v in stats_pct.items %}
+                                    {% if k == label %}
+                                        {{ v }}%
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+
+                        </tr>
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+    // =========================
+    // DADOS
+    // =========================
+
+    const timelineLabels = JSON.parse('{{ timeline_labels|escapejs }}');
+
+    const hateData = JSON.parse('{{ hate_timeline|escapejs }}');
+    const badData = JSON.parse('{{ bad_timeline|escapejs }}');
+    const niceData = JSON.parse('{{ nice_timeline|escapejs }}');
+    const spamData = JSON.parse('{{ spam_timeline|escapejs }}');
+
+    const pieLabels = JSON.parse('{{ labels_json|escapejs }}');
+    const pieData = JSON.parse('{{ counts_json|escapejs }}');
+
+    const apoio = {{ apoio_pct }};
+    const rejeicao = {{ rejeicao_pct }};
+
+    const wordCloudData = JSON.parse('{{ wordcloud_data|escapejs }}');
+
+    // =========================
+    // TIMELINE
+    // =========================
+
+    new Chart(document.getElementById('timelineChart'), {
+
+        type:'line',
+
+        data:{
+            labels: timelineLabels,
+
+            datasets:[
+                {
+                    label:'Hate',
+                    data:hateData,
+                    borderColor:'#dc3545',
+                    backgroundColor:'rgba(220,53,69,0.1)',
+                    tension:0.4
+                },
+
+                {
+                    label:'Ofensivo',
+                    data:badData,
+                    borderColor:'#fd7e14',
+                    backgroundColor:'rgba(253,126,20,0.1)',
+                    tension:0.4
+                },
+
+                {
+                    label:'Positivo',
+                    data:niceData,
+                    borderColor:'#198754',
+                    backgroundColor:'rgba(25,135,84,0.1)',
+                    tension:0.4
+                },
+
+                {
+                    label:'Spam',
+                    data:spamData,
+                    borderColor:'#6c757d',
+                    backgroundColor:'rgba(108,117,125,0.1)',
+                    tension:0.4
+                }
+            ]
+        },
+
+        options:{
+            responsive:true,
+            maintainAspectRatio:false
+        }
+
+    });
+
+    // =========================
+    // PIE
+    // =========================
+
+    new Chart(document.getElementById('pieChart'), {
+
+        type:'doughnut',
+
+        data:{
+            labels: pieLabels,
+
+            datasets:[{
+                data: pieData,
+
+                backgroundColor:[
+                    '#dc3545',
+                    '#fd7e14',
+                    '#198754',
+                    '#0dcaf0',
+                    '#6c757d',
+                    '#6610f2'
+                ]
+            }]
+        }
+
+    });
+
+    // =========================
+    // APOIO X REJEIÇÃO
+    // =========================
+
+    new Chart(document.getElementById('supportChart'), {
+
+        type:'bar',
+
+        data:{
+            labels:['Apoio', 'Rejeição'],
+
+            datasets:[{
+                data:[apoio, rejeicao],
+
+                backgroundColor:[
+                    '#198754',
+                    '#dc3545'
+                ]
+            }]
+        },
+
+        options:{
+            plugins:{
+                legend:{
+                    display:false
+                }
+            },
+
+            scales:{
+                y:{
+                    beginAtZero:true,
+                    max:100
+                }
+            }
+        }
+
+    });
+
+    // =========================
+    // WORD CLOUD
+    // =========================
+
+    WordCloud(document.getElementById('wordCloud'), {
+
+        list: wordCloudData,
+
+        gridSize: 12,
+        weightFactor: 2,
+        rotateRatio: 0.3,
+        minSize: 10,
+
+        backgroundColor:'#ffffff'
+
+    });
+
+</script>
+
+</body>
+</html>
