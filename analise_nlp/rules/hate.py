@@ -1,5 +1,9 @@
+from sympy import re
+
+from .remover_acento import remover_acentos
 def check_hate(text: str) -> bool:
     # Palavras de ataque a minorias (racismo, homofobia, etc.)
+    text = remover_acentos(text.lower())
     hate_keywords = [
         "aberracao",
         "bahiano",
@@ -49,7 +53,7 @@ def check_hate(text: str) -> bool:
         "favelado",
         "fedido",
         "feminazi",
-        "feministo"]
+        "feministo",
         "flor",
         "florzinha",
         "gayzao",
@@ -120,4 +124,11 @@ def check_hate(text: str) -> bool:
         "xing-ling",
         "xingling"
     ]
-    return any(word in text.lower() for word in hate_keywords)
+        # Verifica cada palavra da lista usando Regex para casar apenas a palavra inteira
+    for word in hate_keywords:
+        # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
+        padrao = rf'\b{word}\b'
+        if re.search(padrao, text):
+            return True
+            
+    return False

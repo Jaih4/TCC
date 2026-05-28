@@ -2,9 +2,13 @@ from transformers import pipeline
 import os
 
 # Aponta para a pasta do seu modelo recém-treinado. 
-MODEL_NAME = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'bert_sota_toxicidade_v2')
+from pathlib import Path
 
-# MODEL_NAME = "C:/Users/danie/Documents/Python/analise_comentarios/bert_sota_toxicidade_v2"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+MODEL_NAME = BASE_DIR / "analise_3_classes_peso"
+
+
 
 classifier = pipeline("text-classification", model=MODEL_NAME)
 

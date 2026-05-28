@@ -1,26 +1,130 @@
 import os
-import re
+import re as regex
 from datetime import datetime
 from typing import Any, Dict, List
 from collections import Counter
 import json
 from api.models import Comment
-
 from django.conf import settings
 from django.shortcuts import render
-
+from dashboard.forms import InstagramDashboardForm
+import pandas as pd
+from .forms import PostEspecificoForm
 from analise_nlp.instagram_pipeline import (
     ApifyInstagramScraper,
     processar_comentarios,
-    salvar_resultados_no_banco,
+    salvar_resultados_no_banco
 )
-from dashboard.forms import InstagramDashboardForm
 
+def analisar_post_especifico_view(request):
+    # Contexto inicial padrão para requisições GET
+    form = PostEspecificoForm()
+    context = {
+        'form': PostEspecificoForm(),
+        'submitted': False,
+        'error_message': None,
+    }
+
+    if request.method == 'POST':
+        form = PostEspecificoForm(request.POST)
+        context['form'] = form
+        context['submitted'] = True
+        
+        if form.is_valid():
+            post_url = form.cleaned_data['post_url']
+            data_referencia = form.cleaned_data['data_referencia']
+            
+            # Removemos espaços em branco e um eventual '@' caso o usuário digite
+            profile_name = form.cleaned_data['profile_name'].strip().lstrip('@')
+            
+            try:
+                # 1. Instancia o scraper (Substitua pela sua forma de obter o token)
+                token = getattr(settings, 'APIFY_TOKEN', 'SEU_TOKEN_APIFY_AQUI')
+                scraper = ApifyInstagramScraper(
+                    apify_token=token,
+                    max_comments_per_post=200 
+                )
+                
+                # 2. Chama o método que vai direto para o post e filtra pela data
+                filtered_comments = scraper.scrape_comments_for_post(post_url, data_referencia)
+                
+                # Se a lista voltar vazia, encerra a execução e avisa o HTML
+                if not filtered_comments:
+                    context['total_comments'] = 0
+                    return render(request, 'dashboard/post_dashboard.html', context)
+                    
+                # 3. Passa os comentários filtrados pelo pipeline de NLP
+                df = processar_comentarios(filtered_comments)
+                context['total_comments'] = len(df)
+                
+                # 4. Salva no banco de dados
+                # Passamos o nome do perfil informado no form para o DB
+                salvar_resultados_no_banco(df, profile_handle=profile_name)
+                context['saved_table'] = True
+
+                # ==========================================
+                # PREPARAÇÃO DOS DADOS PARA RENDERIZAÇÃO NO HTML
+                # ==========================================
+                
+                # A. Estatísticas de Sentimento (Baseado no score_p)
+                apoio = len(df[df['score_p'] > 0])
+                rejeicao = len(df[df['score_p'] < 0])
+                neutro = len(df[df['score_p'] == 0])
+                total = len(df)
+                
+                context['stats_data'] = [
+                    {
+                        'label': 'Apoio / Positivo', 
+                        'count': apoio, 
+                        'pct_str': round((apoio / total) * 100, 1) if total > 0 else 0, 
+                        'color': 'success'
+                    },
+                    {
+                        'label': 'Rejeição / Negativo', 
+                        'count': rejeicao, 
+                        'pct_str': round((rejeicao / total) * 100, 1) if total > 0 else 0, 
+                        'color': 'danger'
+                    },
+                    {
+                        'label': 'Neutro', 
+                        'count': neutro, 
+                        'pct_str': round((neutro / total) * 100, 1) if total > 0 else 0, 
+                        'color': 'secondary'
+                    }
+                ]
+                
+                # B. Top 20 Palavras
+                # Junta todo o texto, normaliza para minúsculas e extrai palavras >= 3 letras
+                texto_completo = " ".join(df['texto'].dropna().astype(str)).lower()
+                palavras = re.findall(r'\b[a-zà-ú]{3,}\b', texto_completo)
+                
+                # Filtro de stopwords (você pode expandir essa lista depois)
+                stopwords = {
+                    'que', 'para', 'com', 'não', 'uma', 'dos', 'das', 'por', 
+                    'mais', 'como', 'mas', 'foi', 'ele', 'ela', 'isso', 'esse',
+                    'este', 'pra', 'pro', 'aos', 'nas', 'nos'
+                }
+                palavras_uteis = [p for p in palavras if p not in stopwords]
+                
+                # O HTML espera uma tupla (palavra, frequencia)
+                context['top_words'] = Counter(palavras_uteis).most_common(20)
+                
+                # C. Detalhes dos Comentários (Tabela)
+                # Seleciona as colunas, ordena pelo maior score e converte para dict pro Django iterar
+                df_results = df[['score_p', 'texto']].sort_values(by='score_p', ascending=False)
+                context['results'] = df_results.to_dict('records')
+
+            except Exception as e:
+                # Se algo quebrar no meio do processo, captura o erro e envia pro HTML
+                context['error_message'] = f"Ocorreu um erro na extração/análise: {str(e)}"
+                
+    return render(request, 'dashboard/post_dashboard.html', context)
 
 def _normalize_instagram_profile(profile_or_url: str) -> str:
     raw = (profile_or_url or '').strip()
     if raw.startswith('http'):
-        match = re.search(r'(?:instagram\.com/(?:p/|tv/|reel/)?@?)([A-Za-z0-9_.-]+)', raw)
+        # ANTES: match = re.search(...)
+        match = regex.search(r'(?:instagram\.com/(?:p/|tv/|reel/)?@?)([A-Za-z0-9_.-]+)', raw)
         if match:
             return match.group(1)
     if raw.startswith('@'):
@@ -95,7 +199,8 @@ def dashboard(request):
                         
                     # Capturar palavras com mais de 3 caracteres
                     texto = str(row.get('texto', '')).lower()
-                    palavras = re.findall(r'\b[a-záéíóúâêîôûãõç]{3,}\b', texto)
+                    # ANTES: palavras = re.findall(...)
+                    palavras = regex.findall(r'\b[a-zà-ú]{3,}\b', texto)
                     for p in palavras:
                         if p not in stopwords:
                             word_counter[p] += 1
@@ -352,3 +457,6 @@ def dashboard_nlp(request):
         'dashboard/dashboard_nlp.html',
         context
     )
+
+def post(request):
+    return render(request, 'dashboard/post_dashboard.html')

@@ -1,5 +1,8 @@
+from .remover_acento import remover_acentos
+import re
 def check_middle(text: str) -> bool:
     # Palavrões de intensificação (puta, foda, caralho)
+    text = remover_acentos(text.lower())
     middle_keywords = [
         "bagulho",
         "caceta",
@@ -40,4 +43,11 @@ def check_middle(text: str) -> bool:
         "vai tomar no cu",
         "vtnc"
     ]
-    return any(word in text.lower() for word in middle_keywords)
+        # Verifica cada palavra da lista usando Regex para casar apenas a palavra inteira
+    for word in middle_keywords:
+        # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
+        padrao = rf'\b{word}\b'
+        if re.search(padrao, text):
+            return True
+            
+    return False

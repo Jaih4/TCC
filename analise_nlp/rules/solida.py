@@ -1,5 +1,10 @@
+from .remover_acento import remover_acentos
+import re
 def check_solida(text: str) -> bool:
     # apoio geral (ótimo, excelente, maravilhoso)
+    text = remover_acentos(text.lower())
+
+
     solida_keywords = [
         "acolhimento",
         "admiravel",
@@ -55,4 +60,11 @@ def check_solida(text: str) -> bool:
         "vitoria",
         "viva"
     ]
-    return any(word in text.lower() for word in solida_keywords)
+        # Verifica cada palavra da lista usando Regex para casar apenas a palavra inteira
+    for word in solida_keywords:
+        # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
+        padrao = rf'\b{word}\b'
+        if re.search(padrao, text):
+            return True
+            
+    return False

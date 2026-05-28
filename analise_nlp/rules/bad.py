@@ -1,5 +1,9 @@
+from .remover_acento import remover_acentos
+import re
+
 def check_bad(text: str) -> bool:
     # Ofensas gerais (lixo, imbecil, idiota)
+    text = remover_acentos(text.lower())
     bad_keywords = [
         "aborto",
         "anal",
@@ -68,6 +72,8 @@ def check_bad(text: str) -> bool:
         "cassete",
         "cequelada",
         "cequelado",
+        "chata",
+        "chato",
         "chalerinha",
         "chatico",
         "chavasca",
@@ -338,4 +344,11 @@ def check_bad(text: str) -> bool:
         "xupeta",
         "xupetinha"
     ]
-    return any(word in text.lower() for word in bad_keywords)
+    # Verifica cada palavra da lista usando Regex para casar apenas a palavra inteira
+    for word in bad_keywords:
+        # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
+        padrao = rf'\b{word}\b'
+        if re.search(padrao, text):
+            return True
+            
+    return False

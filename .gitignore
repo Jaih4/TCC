@@ -12,6 +12,7 @@ __pycache__/
 *.pyo
 
 # Ignore model checkpoints and training outputs not needed in Git
+analise_3_classes_peso
 bert_sota_toxicidade/
 meu_bert_toxico/
 resultados_mega_modelo/
@@ -19,3 +20,7 @@ resultados_treinamento/
 bert_sota_toxicidade_v2/
 resultados_sentimento/
 meu_bert_sentimento/
+bert_analise_sentimento_3_classes/
+dataset_modelo_final.csv
+resultados_modelo_3_classes
+analise_3_classes_peso_vacina

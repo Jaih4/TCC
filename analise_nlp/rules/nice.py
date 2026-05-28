@@ -1,5 +1,9 @@
+import re
+
+from .remover_acento import remover_acentos
 def check_nice(text: str) -> bool:
     # elogios gerais 
+    text = remover_acentos(text.lower())
     nice_keywords = [
         "admiravel",
         "adoravel",
@@ -600,4 +604,11 @@ def check_nice(text: str) -> bool:
         "zen",
         "zica"
     ]
-    return any(word in text.lower() for word in nice_keywords)
+        # Verifica cada palavra da lista usando Regex para casar apenas a palavra inteira
+    for word in nice_keywords:
+        # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
+        padrao = rf'\b{word}\b'
+        if re.search(padrao, text):
+            return True
+            
+    return False

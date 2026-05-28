@@ -1,5 +1,4 @@
 # analise_nlp/ensemble/scorer.py
-
 from analise_nlp.rules.bad import check_bad
 from analise_nlp.rules.hate import check_hate
 from analise_nlp.rules.middle import check_middle
@@ -20,28 +19,37 @@ def ensemble_score(text: str, all_texts_in_scrape: list, bert_scores: list) -> f
         'spam': check_spam(text),
     }
 
-    # --- INÍCIO DO FLUXOGRAMA ---
-    p = 0
-    s = 'pos' # Default conforme o "Neutro" do seu mapa
-
-    # Classificador de Teor
-    if rules['hate_list']:
-        p, s = 4, 'neg'
-    elif rules['bad_list']:
-        p, s = 2, 'neg'
-    elif rules['nice_list']:
-        p, s = 2, 'pos'
-    elif rules['solida_list']:
-        p, s = 4, 'pos'
-
+    # Saldo começa zerado
+    saldo = 0
+    
+    # Cada lista puxa o saldo para o seu lado
+    if rules['hate_list']: saldo -= 4
+    if rules['bad_list']:  saldo -= 2
+    if rules['nice_list']: saldo += 2
+    if rules['solida_list']: saldo += 4
+    
     # Classificação de Intensidade (Agregadores)
     agregadores = 0
     if rules['caps_lock']: agregadores += 1
     if rules['spam']: agregadores += 1
     if rules['middlelist']: agregadores += 1
 
-    # Soma de intensidade (Regra: P = P + agregadores)
-    p += agregadores # Simplifica a lógica do seu desenho (1, 2 ou 3)
+    # Define a Direção (s) e a Intensidade (p) separadamente
+    if saldo > 0:
+        s = 'pos'
+        # Pega a base positiva e soma a força dos agregadores
+        p = saldo + agregadores
+        
+    elif saldo < 0:
+        s = 'neg'
+        # Pega a base negativa (transformada em positivo pelo abs) e soma os agregadores
+        p = abs(saldo) + agregadores
+        
+    else:
+        # Se o saldo for 0 (neutro ou empate), os agregadores são IGNORADOS.
+        # Afinal, gritar em CAPS LOCK uma frase neutra não a torna positiva nem negativa.
+        p = 0
+        s = 'neu'
 
     # Inversão inicial de sinal
     if s == 'neg':
@@ -51,22 +59,67 @@ def ensemble_score(text: str, all_texts_in_scrape: list, bert_scores: list) -> f
     # Aqui usamos o seu modelo treinado para checar se o sinal deve inverter
     bert_result = bert_scores[0]
     
-    # Se BERT diz Tóxico (LABEL_1) mas o P é Positivo (Nice/Solida/Neutro)
-    # OU se BERT diz Normal (LABEL_0) mas o P é Negativo (Hate/Bad)
-    tem_ironia = False
-    if (p > 0 and bert_result['label'] == 'LABEL_1') or \
-       (p < 0 and bert_result['label'] == 'LABEL_0'):
-        if bert_result['score'] > 0.75: # Confiança mínima para inverter
-            tem_ironia = True
+    label_ia = bert_result['label']
+    certeza_ia = bert_result['score']
 
-    if tem_ironia:
-        # Lógica do diagrama: se neg faz módulo, se pos faz * -1
-        p = p * -1 
+    # Traduz o modelo de 3 classes para a mesma "língua" do seu algoritmo
+    if label_ia in ['Positivo', 'LABEL_2']:
+        opiniao_ia = 'pos'
+    elif label_ia in ['Negativo', 'LABEL_0']:
+        opiniao_ia = 'neg'
+    else:
+        opiniao_ia = 'neu'
 
-    # --- RESULTADO FINAL (Escala 0 a 1) ---
-    # No seu modelo, -7 é o pior caso (Hate + 3 agregadores)
-    # +7 é o melhor caso (Solida + 3 agregadores)
-    # Convertendo para 0.0 (Bom) a 1.0 (Ruim/Tóxico)
-    normalized = 0.5 - (p / 14.0)
+    # ==========================================
+    # 2. FLUXOGRAMA DE DECISÃO HÍBRIDA
+    # ==========================================
+    
+    if p == 0:
+        # --- CAMINHO ESQUERDO: Algoritmo não identificou nada ---
+        
+        # Caixa: "Modelo tem certeza MAIOR que 80% que é Posit ou Negat"
+        if opiniao_ia in ['pos', 'neg'] and certeza_ia > 0.80:
+            p = 2
+            s = opiniao_ia # Aplica 'neg' ou 'pos' dependendo do modelo
+        
+        # Caixa tracejada azul: "Menor que 80% OU +80% que é NEUTRO"
+        else:
+            p = 0
+            s = 'neu'
+
+    else:
+        # --- CAMINHO DIREITO: Algoritmo identificou algo (P != 0) ---
+        
+        if opiniao_ia == s:
+            # Caixa: "Modelo CONCORDA em qualquer nível"
+            # Mantém o peso de P e a direção intactos
+            pass 
+            
+        else:
+            # Modelo DISCORDA do Algoritmo
+            
+            # Caixa tracejada verde: "Discorda com mais de 80% de certeza que é POSITIVO ou NEGATIVO"
+            if opiniao_ia != 'neu' and certeza_ia > 0.80:
+                # Aqui ele classifica sarcasmo/inversão!
+                # Como a IA tem +80% de certeza, ela vence. Trocamos o sentido (S).
+                s = opiniao_ia 
+                
+            # Caixa tracejada azul direita: "Discorda com menos de 80% OU +80% que é NEUTRO"
+            else:
+                p = 0
+                s = 'neu'
+
+    # ==========================================
+    # 3. RESULTADO FINAL (Ordem de Aprovação)
+    # ==========================================
+    # Agora sim aplicamos a regra matemática do diagrama:
+    # Se s='pos', P fica positivo. Se s='neg', P fica negativo.
+    p_matematico = p if s == 'pos' else (-p if s == 'neg' else 0)
+
+    # --- NORMALIZAÇÃO (Escala 0.0 Bom a 1.0 Ruim) ---
+    # Atenção: Como você retirou o limite de teto das palavras, seu P agora pode 
+    # ficar maior que 7. Aumentei o divisor (14.0 para 20.0) para acomodar intensidades 
+    # maiores sem o cálculo estourar o limite de 0 ou 1 logo de cara.
+    normalized = 0.5 - (p_matematico / 20.0) 
     
     return max(0.0, min(1.0, round(normalized, 4)))
