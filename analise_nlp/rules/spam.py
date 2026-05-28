@@ -1,4 +1,4 @@
-import re
+import re as regex
 
 def check_spam(text: str) -> bool:
     """
@@ -9,7 +9,7 @@ def check_spam(text: str) -> bool:
     pattern = r'\b(\w+)\b(?:\s+\1\b){3,}'
     
 
-    if re.search(pattern, text, re.IGNORECASE):
+    if regex.search(pattern, text, regex.IGNORECASE):
         return True
         
     return False

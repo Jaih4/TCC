@@ -1,4 +1,4 @@
-from sympy import re
+import re as regex
 
 from .remover_acento import remover_acentos
 def check_hate(text: str) -> bool:
@@ -128,7 +128,7 @@ def check_hate(text: str) -> bool:
     for word in hate_keywords:
         # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
         padrao = rf'\b{word}\b'
-        if re.search(padrao, text):
+        if regex.search(padrao, text):
             return True
             
     return False

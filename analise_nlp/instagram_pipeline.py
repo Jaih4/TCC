@@ -211,7 +211,20 @@ class ApifyInstagramScraper:
         input_data = {
             'directUrls': post_urls, 
             'resultsType': 'comments', 
-            'resultsLimit': self.max_comments_per_post, 
+            'resultsLimit': self.max_comments_per_post,
+
+              "cookies": [
+                {
+                    "name": "sessionid",
+                    "value": "SEU_SESSION_ID",
+                    "domain": ".instagram.com"
+                },
+                {
+                    "name": "csrftoken",
+                    "value": "SEU_CSRF",
+                    "domain": ".instagram.com"
+                }
+            ]
         }
         
         actor_id = 'apify/instagram-scraper'
@@ -386,7 +399,7 @@ class ScorerHibrido:
 
         LIMITE_CONFIANCA = 0.80 # Limite geral para confiar na decisão do modelo
         LIMITE_CONFIANCA_POS = 0.75 # Mais tolerante para aceitar gírias positivas
-        LIMITE_CONFIANCA_NEG = 0.90 # Mais rigoroso para classificar como sarcasmo/negativo
+        LIMITE_CONFIANCA_NEG = 0.98 # Mais rigoroso para classificar como sarcasmo/negativo
         
         # ---------------------------------------------------------
         # FLUXO 1: Algoritmo está NEUTRO (P == 0)

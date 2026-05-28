@@ -1,5 +1,5 @@
 from .remover_acento import remover_acentos
-import re
+import re as regex
 def check_solida(text: str) -> bool:
     # apoio geral (ótimo, excelente, maravilhoso)
     text = remover_acentos(text.lower())
@@ -64,7 +64,7 @@ def check_solida(text: str) -> bool:
     for word in solida_keywords:
         # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
         padrao = rf'\b{word}\b'
-        if re.search(padrao, text):
+        if regex.search(padrao, text):
             return True
             
     return False

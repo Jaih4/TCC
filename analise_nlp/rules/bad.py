@@ -1,5 +1,5 @@
 from .remover_acento import remover_acentos
-import re
+import re as regex
 
 def check_bad(text: str) -> bool:
     # Ofensas gerais (lixo, imbecil, idiota)
@@ -348,7 +348,7 @@ def check_bad(text: str) -> bool:
     for word in bad_keywords:
         # \b cria uma "fronteira", garantindo que "cu" só dê match se estiver isolado
         padrao = rf'\b{word}\b'
-        if re.search(padrao, text):
+        if regex.search(padrao, text):
             return True
             
     return False
