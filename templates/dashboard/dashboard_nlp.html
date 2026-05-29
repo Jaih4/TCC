@@ -6,13 +6,10 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- WordCloud -->
     <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
 
     <style>
@@ -52,7 +49,6 @@
 
 <div class="container-fluid py-4">
 
-    <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold mb-0">Dashboard de Análise NLP</h2>
@@ -66,7 +62,6 @@
         </a>
     </div>
 
-    <!-- FILTRO -->
     <div class="card mb-4">
         <div class="card-body">
 
@@ -99,7 +94,6 @@
         </div>
     </div>
 
-    <!-- KPIS -->
     <div class="row g-4 mb-4">
 
         <div class="col-md-3">
@@ -109,7 +103,7 @@
                 </div>
 
                 <div class="metric-value">
-                    {{ total_comments }}
+                    {{ total_comments|default:"0" }}
                 </div>
             </div>
         </div>
@@ -117,11 +111,11 @@
         <div class="col-md-3">
             <div class="metric-card bg-success">
                 <div class="metric-title">
-                    Apoio
+                    Elogios
                 </div>
 
                 <div class="metric-value">
-                    {{ apoio_pct }}%
+                    {{ elogios_pct|default:"0" }}%
                 </div>
             </div>
         </div>
@@ -129,11 +123,11 @@
         <div class="col-md-3">
             <div class="metric-card bg-danger">
                 <div class="metric-title">
-                    Rejeição
+                    Ofensas
                 </div>
 
                 <div class="metric-value">
-                    {{ rejeicao_pct }}%
+                    {{ ofensas_pct|default:"0" }}%
                 </div>
             </div>
         </div>
@@ -145,34 +139,31 @@
                 </div>
 
                 <div class="metric-value">
-                    {{ media_score }}
+                    {{ media_score|default:"0" }}
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- LINHA 1 -->
     <div class="row g-4 mb-4">
 
-        <!-- GRAFICO TEMPORAL -->
         <div class="col-lg-8">
             <div class="card h-100">
-
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
 
                     <h5 class="fw-bold mb-4">
                         Evolução das Categorias no Tempo
                     </h5>
 
-                    <canvas id="timelineChart"></canvas>
+                    <div class="flex-grow-1" style="position: relative; min-height: 300px; height: 350px; max-height: 400px; width: 100%;">
+                        <canvas id="timelineChart" style="max-height: 100% !important;"></canvas>
+                    </div>
 
                 </div>
-
             </div>
         </div>
 
-        <!-- DISTRIBUIÇÃO -->
         <div class="col-lg-4">
             <div class="card h-100">
 
@@ -191,10 +182,8 @@
 
     </div>
 
-    <!-- LINHA 2 -->
     <div class="row g-4 mb-4">
 
-        <!-- NUVEM -->
         <div class="col-lg-8">
 
             <div class="card">
@@ -213,7 +202,6 @@
 
         </div>
 
-        <!-- APOIO X REJEIÇÃO -->
         <div class="col-lg-4">
 
             <div class="card h-100">
@@ -221,7 +209,7 @@
                 <div class="card-body">
 
                     <h5 class="fw-bold mb-4">
-                        Apoio vs Rejeição
+                        Elogios vs Ofensas
                     </h5>
 
                     <canvas id="supportChart"></canvas>
@@ -234,7 +222,6 @@
 
     </div>
 
-    <!-- TABELA -->
     <div class="card">
 
         <div class="card-body">
@@ -294,23 +281,23 @@
 <script>
 
     // =========================
-    // DADOS
+    // DADOS PROTEGIDOS (Evita quebra de JS se a view não enviar a variável)
     // =========================
 
-    const timelineLabels = JSON.parse('{{ timeline_labels|escapejs }}');
+    const timelineLabels = JSON.parse('{{ timeline_labels|escapejs }}' || '[]');
 
-    const hateData = JSON.parse('{{ hate_timeline|escapejs }}');
-    const badData = JSON.parse('{{ bad_timeline|escapejs }}');
-    const niceData = JSON.parse('{{ nice_timeline|escapejs }}');
-    const spamData = JSON.parse('{{ spam_timeline|escapejs }}');
+    const hateData = JSON.parse('{{ hate_timeline|escapejs }}' || '[]');
+    const badData = JSON.parse('{{ bad_timeline|escapejs }}' || '[]');
+    const niceData = JSON.parse('{{ nice_timeline|escapejs }}' || '[]');
+    const spamData = JSON.parse('{{ spam_timeline|escapejs }}' || '[]');
 
-    const pieLabels = JSON.parse('{{ labels_json|escapejs }}');
-    const pieData = JSON.parse('{{ counts_json|escapejs }}');
+    const pieLabels = JSON.parse('{{ labels_json|escapejs }}' || '[]');
+    const pieData = JSON.parse('{{ counts_json|escapejs }}' || '[]');
 
-    const apoio = {{ apoio_pct }};
-    const rejeicao = {{ rejeicao_pct }};
+    const elogios = {{ elogios_pct|default:"0" }};
+    const ofensas = {{ ofensas_pct|default:"0" }};
 
-    const wordCloudData = JSON.parse('{{ wordcloud_data|escapejs }}');
+    const wordCloudData = JSON.parse('{{ wordcloud_data|escapejs }}' || '[]');
 
     // =========================
     // TIMELINE
@@ -393,7 +380,7 @@
     });
 
     // =========================
-    // APOIO X REJEIÇÃO
+    // ELOGIOS X OFENSAS
     // =========================
 
     new Chart(document.getElementById('supportChart'), {
@@ -401,10 +388,10 @@
         type:'bar',
 
         data:{
-            labels:['Apoio', 'Rejeição'],
+            labels:['Elogios', 'Ofensas'],
 
             datasets:[{
-                data:[apoio, rejeicao],
+                data:[elogios, ofensas],
 
                 backgroundColor:[
                     '#198754',
@@ -433,19 +420,21 @@
     // =========================
     // WORD CLOUD
     // =========================
+    // Só renderiza a nuvem se houver dados, evitando erros na biblioteca
+    if(wordCloudData && wordCloudData.length > 0) {
+        WordCloud(document.getElementById('wordCloud'), {
 
-    WordCloud(document.getElementById('wordCloud'), {
+            list: wordCloudData,
 
-        list: wordCloudData,
+            gridSize: 12,
+            weightFactor: 2,
+            rotateRatio: 0.3,
+            minSize: 10,
 
-        gridSize: 12,
-        weightFactor: 2,
-        rotateRatio: 0.3,
-        minSize: 10,
+            backgroundColor:'#ffffff'
 
-        backgroundColor:'#ffffff'
-
-    });
+        });
+    }
 
 </script>
 

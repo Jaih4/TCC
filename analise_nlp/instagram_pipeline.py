@@ -106,7 +106,7 @@ def analisador_lexico(texto: str) -> LexicoResult:
 
 
 class ApifyInstagramScraper:
-    def __init__(self, apify_token: str, max_posts: int = 20, max_comments_per_post: int = 200):
+    def __init__(self, apify_token: str, max_posts: int = 10, max_comments_per_post: int = 200):
         if not apify_token:
             raise ValueError('O token APIFY_TOKEN não pode estar vazio.')
         if ApifyClient is None:
@@ -115,7 +115,7 @@ class ApifyInstagramScraper:
             )
 
         self.apify_token = apify_token
-        self.max_posts = 10
+        self.max_posts = max_posts
         self.max_comments_per_post = max_comments_per_post
         self._client = ApifyClient(token=apify_token)
 
@@ -139,9 +139,9 @@ class ApifyInstagramScraper:
     def _list_dataset_items(self, dataset_id: str) -> List[Dict[str, Any]]:
         dataset = self._client.dataset(dataset_id)
         if hasattr(dataset, 'list_items'):
-            result = dataset.list_items(limit=1000)
+            result = dataset.list_items(limit=2000)
         else:
-            result = dataset.get_items(limit=1000)
+            result = dataset.get_items(limit=2000)
 
         if hasattr(result, 'items'):
             return result.items
@@ -167,7 +167,7 @@ class ApifyInstagramScraper:
         input_data = {
             'directUrls': [profile_url],
             'resultsType': 'posts',
-            'resultsLimit': self.max_posts,
+            'resultsLimit': 10,
         }
 
         actor_id = 'apify/instagram-scraper' 
@@ -212,19 +212,7 @@ class ApifyInstagramScraper:
             'directUrls': post_urls, 
             'resultsType': 'comments', 
             'resultsLimit': self.max_comments_per_post,
-
-              "cookies": [
-                {
-                    "name": "sessionid",
-                    "value": "SEU_SESSION_ID",
-                    "domain": ".instagram.com"
-                },
-                {
-                    "name": "csrftoken",
-                    "value": "SEU_CSRF",
-                    "domain": ".instagram.com"
-                }
-            ]
+          
         }
         
         actor_id = 'apify/instagram-scraper'
@@ -297,8 +285,8 @@ class ApifyInstagramScraper:
         elif isinstance(data_referencia, datetime) and data_referencia.tzinfo is None:
             data_referencia = data_referencia.replace(tzinfo=timezone.utc)
 
-        start_date = (data_referencia - timedelta(days=20)).date()
-        end_date = (data_referencia + timedelta(days=20)).date()
+        start_date = (data_referencia - timedelta(days=15)).date()
+        end_date = (data_referencia + timedelta(days=15)).date()
 
         start = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
         end = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=timezone.utc)
@@ -573,8 +561,8 @@ def run_instagram_sentiment_pipeline(
     profile_handle: str,
     apify_token: str,
     data_referencia: datetime,
-    max_posts: int = 20,
-    max_comments_per_post: int = 50,
+    max_posts: int = 10,
+    max_comments_per_post: int = 200,
 ) -> pd.DataFrame:
     """Executa todo o pipeline Apify + Scorer Híbrido e retorna um DataFrame."""
     scraper = ApifyInstagramScraper(

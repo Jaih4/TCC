@@ -236,7 +236,6 @@ def dashboard(request):
     return render(request, 'dashboard/index.html', context)
 
 def database_dashboard(request):
-    # Filtro opcional por nome da conta (ex: ?account=fulano)
     account_filter = request.GET.get('account')
     if account_filter:
         comments = Comment.objects.filter(account_name=account_filter)
@@ -245,6 +244,7 @@ def database_dashboard(request):
 
     total_comments = comments.count()
 
+    # Estatísticas do Score (Tabela e Gráfico de Pizza)
     stats = {
         'Muito Ofensivo': 0,
         'Ofensivo': 0,
@@ -253,7 +253,16 @@ def database_dashboard(request):
         'Muito Favorável': 0,
     }
 
+    # Variáveis separadas para a sua fórmula de Elogios e Ofensas
+    contagem_nlp = {
+        'nice': 0,
+        'solida': 0,
+        'bad': 0,
+        'hate': 0
+    }
+
     for c in comments:
+        # 1. Lógica do Score (já existia no seu código)
         score = c.score
         if score <= -4:
             stats['Muito Ofensivo'] += 1
@@ -266,17 +275,37 @@ def database_dashboard(request):
         elif score >= 4:
             stats['Muito Favorável'] += 1
 
+        # 2. Lógica do NLP (ADICIONE AQUI COMO SEU BANCO SALVA ISSO)
+        # Exemplo: supondo que você tenha um campo 'label_nlp' no seu banco
+        if c.label_nlp == 'nice':
+            contagem_nlp['nice'] += 1
+        elif c.label_nlp == 'solida':
+            contagem_nlp['solida'] += 1
+        elif c.label_nlp == 'bad':
+            contagem_nlp['bad'] += 1
+        elif c.label_nlp == 'hate':
+            contagem_nlp['hate'] += 1
+
+    # Porcentagens da Tabela
     stats_pct = {}
     for k, v in stats.items():
         stats_pct[k] = round((v / total_comments * 100), 1) if total_comments > 0 else 0
 
-    # Obter contas únicas para o select do filtro (remove nulos e vazios)
+    # === APLICANDO SUA FÓRMULA ===
+    elogios_count = contagem_nlp['nice'] + contagem_nlp['solida']
+    ofensas_count = contagem_nlp['bad'] + contagem_nlp['hate']
+
+    elogios_pct = round((elogios_count / total_comments * 100), 1) if total_comments > 0 else 0
+    ofensas_pct = round((ofensas_count / total_comments * 100), 1) if total_comments > 0 else 0
+
     accounts = Comment.objects.exclude(account_name__isnull=True).exclude(account_name='').values_list('account_name', flat=True).distinct()
 
     context = {
         'total_comments': total_comments,
         'stats': stats,
         'stats_pct': stats_pct,
+        'elogios_pct': elogios_pct,  # Substituiu apoio_pct
+        'ofensas_pct': ofensas_pct,  # Substituiu rejeicao_pct
         'labels_json': json.dumps(list(stats.keys())),
         'counts_json': json.dumps(list(stats.values())),
         'accounts': accounts,
@@ -286,7 +315,7 @@ def database_dashboard(request):
 
 #gpt
 
-from django.db.models import Count, Avg
+from django.db.models import Count, Avg, Q
 from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from collections import Counter
@@ -352,10 +381,14 @@ def dashboard_nlp(request):
     # TIMELINE
     # =========================
 
-    timeline = comments.annotate(
+    timeline = comments.exclude(data__isnull=True).annotate(
         dia=TruncDate('data')
     ).values('dia').annotate(
-        total=Count('id')
+        total=Count('id'),
+        hate_count=Count('id', filter=Q(hate=True)),
+        bad_count=Count('id', filter=Q(bad=True)),
+        nice_count=Count('id', filter=Q(nice=True)),
+        spam_count=Count('id', filter=Q(spam=True))
     ).order_by('dia')
 
     timeline_labels = []
@@ -365,26 +398,13 @@ def dashboard_nlp(request):
     spam_timeline = []
 
     for item in timeline:
-
         dia = item['dia']
-
         timeline_labels.append(str(dia))
-
-        hate_timeline.append(
-            comments.filter(data__date=dia, hate=True).count()
-        )
-
-        bad_timeline.append(
-            comments.filter(data__date=dia, bad=True).count()
-        )
-
-        nice_timeline.append(
-            comments.filter(data__date=dia, nice=True).count()
-        )
-
-        spam_timeline.append(
-            comments.filter(data__date=dia, spam=True).count()
-        )
+        
+        hate_timeline.append(item['hate_count'])
+        bad_timeline.append(item['bad_count'])
+        nice_timeline.append(item['nice_count'])
+        spam_timeline.append(item['spam_count'])
 
     # =========================
     # WORD CLOUD
