@@ -27,3 +27,24 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.account_name}: {self.texto[:30]}"
+    
+    from django.db import models
+
+class TestComment(models.Model):
+    account_name = models.CharField(max_length=255, null=True, blank=True)
+    texto = models.TextField(null=True, blank=True)
+    data = models.DateTimeField(null=True, blank=True)
+    hate = models.BooleanField(default=False)
+    bad = models.BooleanField(default=False)
+    nice = models.BooleanField(default=False)
+    solida = models.BooleanField(default=False)
+    caixa_alta = models.BooleanField(default=False)
+    spam = models.BooleanField(default=False)
+    middlelist = models.BooleanField(default=False)
+    modelo = models.CharField(max_length=255, null=True, blank=True)
+    confianca = models.FloatField(default=0.0)
+    score_p = models.FloatField(default=0.0)
+
+    class Meta:
+        # Força o nome exato da tabela no banco de dados
+        db_table = 'test_comments'

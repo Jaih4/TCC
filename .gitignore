@@ -24,3 +24,8 @@ bert_analise_sentimento_3_classes/
 dataset_modelo_final.csv
 resultados_modelo_3_classes
 analise_3_classes_peso_vacina
+
+api_comment.csv
+convertido.csv
+sqllite.py
+nova_base.py

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, date, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple, NamedTuple
 import re
+from tqdm import tqdm
 
 try:
     import pandas as pd
@@ -451,7 +452,7 @@ class ScorerHibrido:
 
 def processar_comentarios(comentarios: List[Dict[str, Any]]) -> pd.DataFrame:
     rows: List[Dict[str, Any]] = []
-    for comment in comentarios:
+    for comment in tqdm(comentarios, desc="Analisando comentários"):
         if not isinstance(comment, dict):
             continue
 
@@ -463,17 +464,18 @@ def processar_comentarios(comentarios: List[Dict[str, Any]]) -> pd.DataFrame:
         scorer = ScorerHibrido(texto)
         sentimento_final, score_final = scorer.calcular_score_final()
 
-        published_at = comment.get('publishedAt')
-        if isinstance(published_at, datetime):
-            published_at_value = published_at
-        else:
-            published_at_value = ApifyInstagramScraper._parse_datetime(published_at)
+        published_at = comment.get('data')
+        #if isinstance(published_at, datetime):
+        #    published_at_value = published_at
+        #else:
+        #    published_at_value = ApifyInstagramScraper._parse_datetime(published_at)
 
         # AGORA EXTRAIMOS DIRETO DO OBJETO SCORER
         rows.append(
             {
                 'texto': texto,
-                'published_at': published_at_value,
+                'account_name': comment.get('account_name'),
+                'published_at': published_at,
                 'is_hate': scorer.lexico.is_hate,
                 'is_bad': scorer.lexico.is_bad,
                 'is_nice': scorer.lexico.is_nice,
@@ -509,7 +511,7 @@ def salvar_resultados_no_banco(df: pd.DataFrame, profile_handle: str = '') -> st
 
     for _, row in df.iterrows():
         texto = row.get('texto') or ''
-        
+        account_name = row.get('account_name')
         score = row.get('score_p')
         try:
             score_val = float(score) if pd.notna(score) else 0.0
@@ -535,7 +537,7 @@ def salvar_resultados_no_banco(df: pd.DataFrame, profile_handle: str = '') -> st
 
         try:
             Comment.objects.create(
-                account_name=str(profile_handle),
+                account_name=str(account_name),
                 texto=str(texto),
                 data=data_val,
                 hate=hate_val,
